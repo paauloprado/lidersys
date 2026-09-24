@@ -1,6 +1,7 @@
 /**
  * Utilitário centralizado para limpeza e validação de variáveis de ambiente do Supabase.
  * Previne falhas comuns no Vercel:
+ * - O usuário colar o nome da variável no campo de valor (ex: Key: NEXT_PUBLIC_..., Value: NEXT_PUBLIC_...)
  * - Espaços invisíveis / non-breaking spaces (\u00A0, \u200B)
  * - Nomes de variáveis colados junto ao valor (ex: KEY=valor)
  * - Aspas, quebras de linha e barras finais
@@ -10,7 +11,6 @@
 
 function extractSupabaseKey(str: string | undefined): string {
   if (!str) return ''
-  // Remove caracteres invisíveis / non-breaking spaces
   const cleaned = str.replace(/[\u200B-\u200D\uFEFF\u00A0\u202F\u1680\u2000-\u200A\u205F\u3000]/g, ' ').trim()
   
   // Extrai o padrão oficial de chaves do Supabase
@@ -19,10 +19,26 @@ function extractSupabaseKey(str: string | undefined): string {
     return match[0]
   }
 
-  // Se não bater o regex de prefixo padrão, faz limpeza básica
+  // Se contiver apenas o nome da variável por engano, descarta
+  if (cleaned.startsWith('NEXT_PUBLIC_') || cleaned.startsWith('SUPABASE_')) {
+    let stripped = cleaned
+    if (stripped.includes('=')) {
+      stripped = stripped.slice(stripped.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')
+      const subMatch = stripped.match(/(sb_publishable_[A-Za-z0-9_-]+|sb_secret_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9._-]+)/)
+      if (subMatch) return subMatch[0]
+    }
+    // Se ainda for apenas nome de variável, retorna vazio para buscar nos outros candidatos
+    if (stripped.startsWith('NEXT_PUBLIC_') || stripped.startsWith('SUPABASE_')) {
+      return ''
+    }
+  }
+
   let fallback = cleaned.replace(/^["']|["']$/g, '')
   if (fallback.includes('=') && !fallback.startsWith('http')) {
     fallback = fallback.slice(fallback.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')
+  }
+  if (fallback.startsWith('NEXT_PUBLIC_') || fallback.startsWith('SUPABASE_')) {
+    return ''
   }
   return fallback
 }
@@ -42,6 +58,9 @@ function extractSupabaseUrl(str: string | undefined): string {
     fallback = fallback.slice(fallback.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')
   }
   fallback = fallback.replace(/\/+$/, '')
+  if (fallback.startsWith('NEXT_PUBLIC_') || fallback.startsWith('SUPABASE_')) {
+    return ''
+  }
   if (fallback && !fallback.startsWith('http://') && !fallback.startsWith('https://')) {
     fallback = `https://${fallback}`
   }
