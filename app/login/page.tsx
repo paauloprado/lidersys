@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import Image from 'next/image'
 import { LoginForm } from '@/components/modules/auth/LoginForm'
 
+export const dynamic = 'force-dynamic'
+
 export default async function LoginPage() {
   const supabase = await createClient()
 

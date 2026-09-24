@@ -1,5 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server.js'
+import { NextResponse, type NextRequest } from 'next/server'
 
 function parseCookies(header: string | null | undefined): { name: string; value: string }[] {
   if (!header) return []
