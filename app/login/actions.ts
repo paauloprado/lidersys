@@ -27,6 +27,12 @@ export async function loginAction(formData: FormData) {
     }
   }
 
+  if (supabaseAnonKey.includes('your-anon-key')) {
+    return {
+      error: 'A chave anon do Supabase (NEXT_PUBLIC_SUPABASE_ANON_KEY) na Vercel está com valor de exemplo. Configure a chave real do projeto.'
+    }
+  }
+
   try {
     const supabase = await createClient()
 

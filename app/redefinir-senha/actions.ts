@@ -24,7 +24,19 @@ export async function resetPasswordAction(formData: FormData) {
 
   if (!supabaseUrl || !supabaseAnonKey) {
     return {
-      error: 'Variáveis de ambiente do Supabase não configuradas na Vercel.'
+      error: 'Variáveis de ambiente do Supabase não configuradas na Vercel (NEXT_PUBLIC_SUPABASE_URL ou NEXT_PUBLIC_SUPABASE_ANON_KEY ausentes).'
+    }
+  }
+
+  if (supabaseUrl.includes('your-project') || !supabaseUrl.startsWith('http')) {
+    return {
+      error: 'A URL do Supabase na Vercel está com valor de exemplo ou inválida. Configure a URL real do projeto.'
+    }
+  }
+
+  if (supabaseAnonKey.includes('your-anon-key')) {
+    return {
+      error: 'A chave anon do Supabase (NEXT_PUBLIC_SUPABASE_ANON_KEY) na Vercel está com valor de exemplo. Configure a chave real do projeto.'
     }
   }
 
