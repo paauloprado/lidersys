@@ -17,7 +17,7 @@ function parseCookies(header: string | null | undefined): { name: string; value:
 }
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({ request })
+  let response = NextResponse.next()
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -28,7 +28,6 @@ export async function middleware(request: NextRequest) {
 
   const url = request.nextUrl ? request.nextUrl.clone() : new URL(request.url)
   const path = url.pathname
-  const isPublicRoute = path === '/' || path === '/login' || path === '/auth/login'
 
   try {
     const supabase = createServerClient(
@@ -61,41 +60,32 @@ export async function middleware(request: NextRequest) {
 
     const { data: { user } } = await supabase.auth.getUser()
 
-    if (!user && !isPublicRoute) {
+    if (!user) {
       const redirectUrl = new URL('/login', request.url)
       redirectUrl.searchParams.set('next', path)
       return NextResponse.redirect(redirectUrl)
     }
 
-    if (user && (path === '/login' || path.startsWith('/dashboard'))) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role, access_modules')
-        .eq('id', user.id)
-        .maybeSingle()
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, access_modules')
+      .eq('id', user.id)
+      .maybeSingle()
 
-      const modules: string[] = profile?.role === 'admin'
-        ? ['dashboard', 'cabos', 'eleitores', 'candidatos', 'unidades', 'usuarios']
-        : profile?.access_modules ?? []
+    const modules: string[] = profile?.role === 'admin'
+      ? ['dashboard', 'cabos', 'eleitores', 'candidatos', 'unidades', 'usuarios']
+      : profile?.access_modules ?? []
 
-      if (path === '/login') {
-        const firstModule = modules.includes('dashboard') ? 'dashboard' : modules[0]
-        if (!firstModule) return new NextResponse('Acesso não autorizado', { status: 403 })
-        const redirectUrl = new URL(firstModule === 'dashboard' ? '/dashboard' : `/dashboard/${firstModule}`, request.url)
-        return NextResponse.redirect(redirectUrl)
-      }
+    const requiredModule = path === '/dashboard' ? 'dashboard'
+      : path.startsWith('/dashboard/cabos') ? 'cabos'
+      : path.startsWith('/dashboard/eleitores') ? 'eleitores'
+      : path.startsWith('/dashboard/candidatos') ? 'candidatos'
+      : path.startsWith('/dashboard/unidades') ? 'unidades'
+      : path.startsWith('/dashboard/usuarios') ? 'usuarios'
+      : null
 
-      const requiredModule = path === '/dashboard' ? 'dashboard'
-        : path.startsWith('/dashboard/cabos') ? 'cabos'
-        : path.startsWith('/dashboard/eleitores') ? 'eleitores'
-        : path.startsWith('/dashboard/candidatos') ? 'candidatos'
-        : path.startsWith('/dashboard/unidades') ? 'unidades'
-        : path.startsWith('/dashboard/usuarios') ? 'usuarios'
-        : null
-
-      if (!profile || !requiredModule || !modules.includes(requiredModule)) {
-        return new NextResponse('Acesso não autorizado', { status: 403 })
-      }
+    if (!profile || !requiredModule || !modules.includes(requiredModule)) {
+      return new NextResponse('Acesso não autorizado', { status: 403 })
     }
   } catch (err) {
     console.error('Middleware execution error:', err)
@@ -105,4 +95,4 @@ export async function middleware(request: NextRequest) {
 }
 
 export default middleware
-export const config = { matcher: ['/dashboard/:path*', '/login'] }
+export const config = { matcher: ['/dashboard/:path*'] }
