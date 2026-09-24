@@ -2,7 +2,6 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { getCleanEnv } from '@/lib/supabase/env'
-import { redirect } from 'next/navigation'
 
 export async function loginAction(formData: FormData) {
   const email = String(formData.get('email') || '').trim()
@@ -79,5 +78,5 @@ export async function loginAction(formData: FormData) {
   }
 
   // Sucesso
-  redirect('/dashboard')
+  return { success: true, redirectTo: '/dashboard' }
 }

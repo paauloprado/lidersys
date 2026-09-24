@@ -25,14 +25,34 @@ export function LoginForm({ initialError, initialMessage }: LoginFormProps = {})
       const formData = new FormData(e.currentTarget)
       const result = await loginAction(formData)
       
-      // Se o loginAction retornar um erro (e não redirecionar)
+      // Se o loginAction retornar um erro
       if (result?.error) {
         setError(result.error)
         setIsLoading(false)
+        return
+      }
+
+      if (result?.success) {
+        // Redireciona com reload completo garantindo sincronia total dos cookies no servidor
+        window.location.href = result.redirectTo || '/dashboard'
+        return
       }
     } catch (err: unknown) {
+      if (
+        err &&
+        typeof err === 'object' &&
+        'digest' in err &&
+        typeof (err as { digest: unknown }).digest === 'string' &&
+        (err as { digest: string }).digest.startsWith('NEXT_REDIRECT')
+      ) {
+        return
+      }
+
       console.error('Erro ao submeter login:', err)
       const rawMsg = err instanceof Error ? err.message : String(err)
+      if (rawMsg === 'NEXT_REDIRECT') {
+        return
+      }
       if (rawMsg.includes('fetch failed')) {
         setError('Erro de conexão com o banco de dados (fetch failed). Verifique se o projeto no Supabase está ativo e as variáveis de ambiente na Vercel.')
       } else {
@@ -58,6 +78,7 @@ export function LoginForm({ initialError, initialMessage }: LoginFormProps = {})
               name="email"
               type="email"
               required
+              autoComplete="email"
               className="block w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl text-brand-dark placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all bg-white shadow-sm hover:border-slate-300"
               placeholder="seu@email.com"
             />
@@ -82,6 +103,7 @@ export function LoginForm({ initialError, initialMessage }: LoginFormProps = {})
               name="password"
               type="password"
               required
+              autoComplete="current-password"
               className="block w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl text-brand-dark placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all bg-white shadow-sm hover:border-slate-300"
               placeholder="••••••••"
             />

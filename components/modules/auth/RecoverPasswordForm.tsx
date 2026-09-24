@@ -85,6 +85,7 @@ export function RecoverPasswordForm() {
               type="email"
               required
               autoFocus
+              autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="block w-full pl-11 pr-4 py-3 border border-slate-200 rounded-xl text-brand-dark placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all bg-white shadow-sm hover:border-slate-300"
