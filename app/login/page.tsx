@@ -6,12 +6,25 @@ import { LoginForm } from '@/components/modules/auth/LoginForm'
 export const dynamic = 'force-dynamic'
 
 export default async function LoginPage() {
-  const supabase = await createClient()
-
-  // Verifique se o usuário já está logado
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user) {
-    redirect('/dashboard')
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    try {
+      const supabase = await createClient()
+      const { data } = await supabase.auth.getUser()
+      if (data?.user) {
+        redirect('/dashboard')
+      }
+    } catch (e: unknown) {
+      if (
+        e &&
+        typeof e === 'object' &&
+        'digest' in e &&
+        typeof (e as { digest: unknown }).digest === 'string' &&
+        (e as { digest: string }).digest.startsWith('NEXT_REDIRECT')
+      ) {
+        throw e
+      }
+      console.error('Session check error in login page:', e)
+    }
   }
 
   return (
