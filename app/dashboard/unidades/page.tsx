@@ -4,7 +4,6 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
 import UnidadesClient from './UnidadesClient'
 
-// Bairros padrão para o select (já que eles são fixos, ou poderiam vir de uma tabela própria no futuro)
 const BAIRROS_PARNAIBA = [
   'Alto Santa Maria', 'Bebedouro', 'Boa Esperanca', 'Broderville', 'Campestre', 
   'Canta Galo', 'Carmo', 'Catanduvas', 'Ceara', 'Centro', 'Conselheiro Alberto Silva', 
@@ -19,29 +18,24 @@ async function UnidadesData() {
   const supabase = await createClient()
 
   // 1. Verifica sessão via cookie (auth client)
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  // 2. Usa service client para leituras
   const service = createServiceClient()
 
-  const { data: profile } = await service
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
+  // 2. Executa busca do perfil e unidades em paralelo
+  const [profileRes, unidadesRes] = await Promise.all([
+    service.from('profiles').select('role').eq('id', user.id).single(),
+    service.from('voting_locations').select('*').order('name', { ascending: true }),
+  ])
 
-  const isAdmin = profile?.role === 'admin'
-
-  // 3. Busca as unidades eleitorais ordenadas pelo nome
-  const { data: unidades } = await service
-    .from('voting_locations')
-    .select('*')
-    .order('name', { ascending: true })
+  const isAdmin = profileRes.data?.role === 'admin'
 
   return (
     <UnidadesClient 
-      initialUnidades={unidades || []}
+      initialUnidades={unidadesRes.data || []}
       bairros={BAIRROS_PARNAIBA}
       isAdmin={isAdmin}
     />
@@ -50,15 +44,15 @@ async function UnidadesData() {
 
 function UnidadesSkeleton() {
   return (
-    <div className="space-y-8 animate-pulse">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 sm:space-y-8 animate-pulse">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200">
         <div>
-          <div className="h-10 w-64 bg-slate-200 rounded-lg mb-2"></div>
-          <div className="h-5 w-48 bg-slate-100 rounded-lg"></div>
+          <div className="h-8 w-64 bg-slate-200 rounded-lg mb-2"></div>
+          <div className="h-4 w-48 bg-slate-100 rounded-lg"></div>
         </div>
-        <div className="h-12 w-40 bg-brand-primary/20 rounded-xl"></div>
+        <div className="h-10 w-36 bg-brand-primary/20 rounded-xl"></div>
       </div>
-      <div className="h-14 bg-slate-200 rounded-2xl w-full"></div>
+      <div className="h-12 bg-slate-200 rounded-2xl w-full"></div>
       <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden h-[400px]"></div>
     </div>
   )

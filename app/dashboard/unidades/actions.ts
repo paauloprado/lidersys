@@ -5,67 +5,104 @@ import { createServiceClient } from '@/lib/supabase/service'
 import { revalidatePath } from 'next/cache'
 
 export async function createUnidade(formData: FormData) {
-  await authorizeAdmin()
-  const supabase = createServiceClient()
+  try {
+    await authorizeAdmin()
+    const supabase = createServiceClient()
 
-  const name = formData.get('name')?.toString()
-  const neighborhood = formData.get('neighborhood')?.toString()
+    const name = formData.get('name') as string
+    const neighborhood = formData.get('neighborhood') as string
+    const address = (formData.get('address') as string) || null
 
-  if (!name || !neighborhood) return { error: 'Campos obrigatórios faltando.' }
+    if (!name || !neighborhood) {
+      return { error: 'Nome e Bairro são obrigatórios.' }
+    }
 
-  const { data, error } = await supabase
-    .from('voting_locations')
-    .insert([{ name, neighborhood }])
-    .select()
+    const { data, error } = await supabase
+      .from('voting_locations')
+      .insert({
+        name,
+        neighborhood,
+        address,
+      })
+      .select()
+      .single()
 
-  if (error) {
-    console.error('Error creating unidade:', error)
-    return { error: error.message }
+    if (error) {
+      console.error('Error creating unidade:', error)
+      return { error: error.message }
+    }
+
+    revalidatePath('/dashboard/unidades')
+    return { success: true, data }
+  } catch (err: unknown) {
+    console.error('Erro em createUnidade:', err)
+    return { error: err instanceof Error ? err.message : 'Falha ao cadastrar unidade.' }
   }
-
-  revalidatePath('/dashboard/unidades')
-  return { success: true, data }
 }
 
 export async function updateUnidade(formData: FormData) {
-  await authorizeAdmin()
-  const supabase = createServiceClient()
+  try {
+    await authorizeAdmin()
+    const supabase = createServiceClient()
 
-  const id = formData.get('id')?.toString()
-  const name = formData.get('name')?.toString()
-  const neighborhood = formData.get('neighborhood')?.toString()
+    const id = formData.get('id') as string
+    const name = formData.get('name') as string
+    const neighborhood = formData.get('neighborhood') as string
+    const address = (formData.get('address') as string) || null
 
-  if (!id || !name || !neighborhood) return { error: 'Campos obrigatórios faltando.' }
+    if (!id || !name || !neighborhood) {
+      return { error: 'ID, Nome e Bairro são obrigatórios.' }
+    }
 
-  const { data, error } = await supabase
-    .from('voting_locations')
-    .update({ name, neighborhood })
-    .eq('id', id)
-    .select()
+    const { data, error } = await supabase
+      .from('voting_locations')
+      .update({
+        name,
+        neighborhood,
+        address,
+      })
+      .eq('id', id)
+      .select()
+      .single()
 
-  if (error) {
-    console.error('Error updating unidade:', error)
-    return { error: error.message }
+    if (error) {
+      console.error('Error updating unidade:', error)
+      return { error: error.message }
+    }
+
+    revalidatePath('/dashboard/unidades')
+    return { success: true, data }
+  } catch (err: unknown) {
+    console.error('Erro em updateUnidade:', err)
+    return { error: err instanceof Error ? err.message : 'Falha ao atualizar unidade.' }
   }
-
-  revalidatePath('/dashboard/unidades')
-  return { success: true, data }
 }
 
 export async function deleteUnidade(id: string) {
-  await authorizeAdmin()
-  const supabase = createServiceClient()
+  try {
+    if (!id) return { error: 'ID não fornecido.' }
+    await authorizeAdmin()
+    const supabase = createServiceClient()
 
-  const { error } = await supabase
-    .from('voting_locations')
-    .delete()
-    .eq('id', id)
+    const { data, error } = await supabase
+      .from('voting_locations')
+      .delete()
+      .eq('id', id)
+      .select()
 
-  if (error) {
-    console.error('Error deleting unidade:', error)
-    return { error: error.message }
+    if (error) {
+      console.error('Error deleting unidade:', error)
+      return { error: error.message }
+    }
+
+    if (!data || data.length === 0) {
+      return { error: 'Unidade não encontrada ou já excluída.' }
+    }
+
+    revalidatePath('/dashboard/unidades')
+    return { success: true }
+  } catch (err: unknown) {
+    console.error('Erro em deleteUnidade:', err)
+    return { error: err instanceof Error ? err.message : 'Falha ao excluir unidade.' }
   }
-
-  revalidatePath('/dashboard/unidades')
-  return { success: true }
 }

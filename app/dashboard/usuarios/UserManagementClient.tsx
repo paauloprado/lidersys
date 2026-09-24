@@ -1,16 +1,18 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { createUser, updateUser, deleteUser } from './actions'
 import { Plus, Edit2, Trash2, ShieldAlert, User as UserIcon } from 'lucide-react'
 import { toast } from 'sonner'
+import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal'
 
 type Profile = {
   id: string
   full_name: string
   role: 'admin' | 'lider' | 'lideranca' | 'liderado'
   parent_id: string | null
-  email?: string // Join from auth.users se possível, mas vamos simplificar
+  email?: string
   access_modules?: string[]
 }
 
@@ -21,11 +23,17 @@ export default function UserManagementClient({
   initialProfiles: Profile[]
   lideres: Profile[]
 }) {
+  const router = useRouter()
+  const [profiles, setProfiles] = useState<Profile[]>(initialProfiles)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUser, setEditingUser] = useState<Profile | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [roleSelection, setRoleSelection] = useState('liderado')
   const [hasLogin, setHasLogin] = useState(true)
+
+  // Confirmação de exclusão
+  const [deletingUser, setDeletingUser] = useState<Profile | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   function openCreateModal() {
     setEditingUser(null)
@@ -36,6 +44,7 @@ export default function UserManagementClient({
 
   function openEditModal(user: Profile) {
     setEditingUser(user)
+    setRoleSelection(user.role)
     setIsModalOpen(true)
   }
 
@@ -52,6 +61,7 @@ export default function UserManagementClient({
         if (res.success) {
           toast.success('Usuário atualizado com sucesso!')
           setIsModalOpen(false)
+          router.refresh()
         } else {
           toast.error(res.error || 'Erro ao atualizar')
         }
@@ -60,23 +70,42 @@ export default function UserManagementClient({
         if (res.success) {
           toast.success('Usuário criado com sucesso!')
           setIsModalOpen(false)
+          router.refresh()
         } else {
           toast.error(res.error || 'Erro ao criar usuário')
         }
       }
+    } catch (err: unknown) {
+      console.error('Erro ao submeter usuário:', err)
+      toast.error('Erro de conexão ao salvar usuário.')
     } finally {
       setIsLoading(false)
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm('Tem certeza que deseja excluir este usuário definitivamente?')) return
-    
-    const res = await deleteUser(id)
-    if (res.success) {
-      toast.success('Usuário excluído!')
-    } else {
-      toast.error(res.error || 'Erro ao excluir')
+  function requestDelete(user: Profile, e: React.MouseEvent) {
+    e.stopPropagation()
+    setDeletingUser(user)
+  }
+
+  async function confirmDelete() {
+    if (!deletingUser) return
+    setIsDeleting(true)
+    try {
+      const res = await deleteUser(deletingUser.id)
+      if (res.success) {
+        toast.success('Usuário excluído com sucesso!')
+        setProfiles(prev => prev.filter(p => p.id !== deletingUser.id))
+        setDeletingUser(null)
+        router.refresh()
+      } else {
+        toast.error(res.error || 'Erro ao excluir usuário')
+      }
+    } catch (err: unknown) {
+      console.error('Erro ao excluir usuário:', err)
+      toast.error('Erro de conexão ao excluir o usuário.')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -95,38 +124,39 @@ export default function UserManagementClient({
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-300">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-xs">
         <div>
-          <h2 className="text-2xl font-black text-brand-dark tracking-tight">Gestão de Usuários</h2>
-          <p className="text-slate-500 font-medium mt-1">Gerencie acessos, permissões e a hierarquia do sistema.</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-brand-dark tracking-tight">Gestão de Acessos e Usuários</h1>
+          <p className="text-slate-500 font-medium text-sm sm:text-base mt-1">Crie credenciais, gerencie níveis hierárquicos e defina módulos visíveis.</p>
         </div>
         <button 
+          type="button"
           onClick={openCreateModal}
-          className="bg-brand-primary hover:bg-brand-primary-hover text-white px-5 py-2.5 rounded-xl font-bold transition-all shadow-md active:scale-95 flex items-center gap-2"
+          className="flex items-center gap-2 bg-brand-primary hover:bg-brand-primary/90 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-md shadow-brand-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
         >
           <Plus className="w-4 h-4" />
           Novo Usuário
         </button>
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full text-left border-collapse min-w-[650px]">
             <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-sm font-bold text-slate-600">
-                <th className="py-4 px-6">Nome</th>
-                <th className="py-4 px-6">Permissão</th>
+              <tr className="border-b border-slate-200 bg-slate-50/80 text-xs uppercase tracking-wider text-slate-500 font-bold">
+                <th className="py-4 px-6">Nome / ID</th>
+                <th className="py-4 px-6">Cargo</th>
                 <th className="py-4 px-6">Líder Vinculado</th>
                 <th className="py-4 px-6 text-right">Ações</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {initialProfiles.map(profile => (
-                <tr key={profile.id} className="hover:bg-slate-50/50 transition-colors">
+              {profiles.map((profile) => (
+                <tr key={profile.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold">
                         <UserIcon className="w-5 h-5" />
                       </div>
                       <div>
@@ -143,25 +173,35 @@ export default function UserManagementClient({
                   <td className="py-4 px-6">
                     {profile.parent_id ? (
                       <span className="text-sm font-medium text-slate-600">
-                        {initialProfiles.find(p => p.id === profile.parent_id)?.full_name || 'Desconhecido'}
+                        {profiles.find(p => p.id === profile.parent_id)?.full_name || 'Desconhecido'}
                       </span>
                     ) : (
                       <span className="text-sm text-slate-400 italic">Nenhum</span>
                     )}
                   </td>
                   <td className="py-4 px-6 text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <button onClick={() => openEditModal(profile)} className="p-2 text-slate-400 hover:text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-colors">
+                    <div className="flex items-center justify-end gap-1.5">
+                      <button 
+                        type="button"
+                        onClick={() => openEditModal(profile)} 
+                        className="p-2 text-slate-400 hover:text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-colors"
+                        title="Editar Usuário"
+                      >
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      <button onClick={() => handleDelete(profile.id)} className="p-2 text-slate-400 hover:text-brand-red hover:bg-brand-red/10 rounded-lg transition-colors">
+                      <button 
+                        type="button"
+                        onClick={(e) => requestDelete(profile, e)} 
+                        className="p-2 text-slate-400 hover:text-brand-red hover:bg-brand-red/10 rounded-lg transition-colors"
+                        title="Excluir Usuário"
+                      >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
                 </tr>
               ))}
-              {initialProfiles.length === 0 && (
+              {profiles.length === 0 && (
                 <tr>
                   <td colSpan={4} className="py-12 text-center text-slate-500 font-medium">
                     Nenhum perfil encontrado.
@@ -175,7 +215,7 @@ export default function UserManagementClient({
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-brand-dark/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in">
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-lg flex flex-col max-h-[calc(100dvh-2rem)] overflow-hidden">
             <div className="p-6 border-b border-slate-100 flex items-center gap-3 shrink-0 bg-slate-50/50">
               <div className="w-10 h-10 rounded-xl bg-brand-primary/10 text-brand-primary flex items-center justify-center">
@@ -286,6 +326,17 @@ export default function UserManagementClient({
           </div>
         </div>
       )}
+
+      {/* Modal de Confirmação de Exclusão */}
+      <ConfirmDeleteModal
+        isOpen={Boolean(deletingUser)}
+        title="Excluir Usuário"
+        description="Tem certeza que deseja excluir este usuário definitivamente? As credenciais de acesso e perfil serão removidos da plataforma."
+        itemName={deletingUser ? `${deletingUser.full_name} (${roleLabels[deletingUser.role]})` : null}
+        isLoading={isDeleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeletingUser(null)}
+      />
     </div>
   )
 }
