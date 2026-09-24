@@ -1,86 +1,99 @@
 /**
  * Utilitário centralizado para limpeza e validação de variáveis de ambiente do Supabase.
  * Previne falhas comuns no Vercel:
- * - Espaços em branco e aspas acidentais
+ * - Espaços invisíveis / non-breaking spaces (\u00A0, \u200B)
  * - Nomes de variáveis colados junto ao valor (ex: KEY=valor)
- * - Barras finais e ausência de protocolo https://
+ * - Aspas, quebras de linha e barras finais
  * - Suporta tanto a nomenclatura padrão (NEXT_PUBLIC_SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY)
  *   quanto a nova nomenclatura do Supabase (NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY / SUPABASE_SECRET_KEY).
  */
 
-function cleanVal(c: string | undefined): string {
-  if (!c) return ''
-  let cleaned = c.trim().replace(/^["']|["']$/g, '')
-  if (cleaned.includes('=') && !cleaned.startsWith('http')) {
-    cleaned = cleaned.slice(cleaned.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')
+function extractSupabaseKey(str: string | undefined): string {
+  if (!str) return ''
+  // Remove caracteres invisíveis / non-breaking spaces
+  const cleaned = str.replace(/[\u200B-\u200D\uFEFF\u00A0\u202F\u1680\u2000-\u200A\u205F\u3000]/g, ' ').trim()
+  
+  // Extrai o padrão oficial de chaves do Supabase
+  const match = cleaned.match(/(sb_publishable_[A-Za-z0-9_-]+|sb_secret_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9._-]+)/)
+  if (match) {
+    return match[0]
   }
-  return cleaned
+
+  // Se não bater o regex de prefixo padrão, faz limpeza básica
+  let fallback = cleaned.replace(/^["']|["']$/g, '')
+  if (fallback.includes('=') && !fallback.startsWith('http')) {
+    fallback = fallback.slice(fallback.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')
+  }
+  return fallback
 }
 
-function findValidKey(...candidates: (string | undefined)[]): string {
-  // Prioriza chaves com formato oficial do Supabase (sb_publishable_, sb_secret_ ou eyJ)
-  for (const c of candidates) {
-    const cleaned = cleanVal(c)
-    if (cleaned.startsWith('sb_publishable_') || cleaned.startsWith('sb_secret_') || cleaned.startsWith('eyJ')) {
-      return cleaned
-    }
+function extractSupabaseUrl(str: string | undefined): string {
+  if (!str) return ''
+  const cleaned = str.replace(/[\u200B-\u200D\uFEFF\u00A0\u202F\u1680\u2000-\u200A\u205F\u3000]/g, ' ').trim()
+  
+  // Tenta extrair URL de projeto Supabase
+  const match = cleaned.match(/https?:\/\/[a-z0-9.-]+\.supabase\.co/i)
+  if (match) {
+    return match[0].replace(/\/+$/, '')
   }
-  // Fallback para qualquer candidato não vazio e não placeholder
-  for (const c of candidates) {
-    const cleaned = cleanVal(c)
-    if (cleaned && !cleaned.includes('your-anon-key') && !cleaned.includes('your-project')) {
-      return cleaned
-    }
-  }
-  return ''
-}
 
-function findValidUrl(...candidates: (string | undefined)[]): string {
-  for (const c of candidates) {
-    let cleaned = cleanVal(c)
-    if (cleaned) {
-      cleaned = cleaned.replace(/\/+$/, '')
-      if (!cleaned.includes('your-project')) {
-        if (!cleaned.startsWith('http://') && !cleaned.startsWith('https://')) {
-          cleaned = `https://${cleaned}`
-        }
-        return cleaned
-      }
-    }
+  let fallback = cleaned.replace(/^["']|["']$/g, '')
+  if (fallback.includes('=')) {
+    fallback = fallback.slice(fallback.indexOf('=') + 1).trim().replace(/^["']|["']$/g, '')
   }
-  return ''
+  fallback = fallback.replace(/\/+$/, '')
+  if (fallback && !fallback.startsWith('http://') && !fallback.startsWith('https://')) {
+    fallback = `https://${fallback}`
+  }
+  return fallback
 }
 
 export function getCleanEnv(key: string): string {
   if (key === 'NEXT_PUBLIC_SUPABASE_URL' || key === 'SUPABASE_URL') {
-    return findValidUrl(
+    const candidates = [
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.SUPABASE_URL
-    )
+    ]
+    for (const c of candidates) {
+      const url = extractSupabaseUrl(c)
+      if (url && !url.includes('your-project')) return url
+    }
+    return ''
   }
 
   if (key === 'NEXT_PUBLIC_SUPABASE_ANON_KEY' || key === 'NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY') {
-    return findValidKey(
+    const candidates = [
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
       process.env.SUPABASE_ANON_KEY,
-      process.env.SUPABASE_PUBLISHABLE_KEY
-    )
+      process.env.SUPABASE_PUBLISHABLE_KEY,
+      process.env.SUPABASE_SERVICE_ROLE_KEY,
+      process.env.SUPABASE_SECRET_KEY
+    ]
+    for (const c of candidates) {
+      const k = extractSupabaseKey(c)
+      if (k && !k.includes('your-anon-key')) return k
+    }
+    return ''
   }
 
   if (key === 'SUPABASE_SERVICE_ROLE_KEY' || key === 'SUPABASE_SECRET_KEY') {
-    const secret = findValidKey(
+    const candidates = [
       process.env.SUPABASE_SERVICE_ROLE_KEY,
-      process.env.SUPABASE_SECRET_KEY
-    )
-    if (secret) return secret
-    return findValidKey(
+      process.env.SUPABASE_SECRET_KEY,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-    )
+    ]
+    for (const c of candidates) {
+      const k = extractSupabaseKey(c)
+      if (k && !k.includes('your-anon-key') && !k.includes('your-service-role')) return k
+    }
+    return ''
   }
 
-  return cleanVal(process.env[key])
+  const raw = process.env[key]
+  if (!raw) return ''
+  return raw.replace(/[\u200B-\u200D\uFEFF\u00A0\u202F\u1680\u2000-\u200A\u205F\u3000]/g, ' ').trim().replace(/^["']|["']$/g, '')
 }
 
 export function getSupabaseEnv() {

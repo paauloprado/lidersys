@@ -46,8 +46,11 @@ export async function loginAction(formData: FormData) {
         return { error: 'E-mail ou senha incorretos.' }
       }
       if (error.message.includes('Invalid API key')) {
+        const preview = supabaseAnonKey
+          ? `${supabaseAnonKey.slice(0, 15)}... (comprimento: ${supabaseAnonKey.length})`
+          : 'vazia'
         return {
-          error: 'Chave de API do Supabase inválida na Vercel (Invalid API key). Verifique a chave NEXT_PUBLIC_SUPABASE_ANON_KEY e faça um Redeploy.'
+          error: `Chave de API do Supabase inválida na Vercel (Invalid API key). A Vercel está lendo a chave: "${preview}". Certifique-se de salvar a chave sb_publishable_... na Vercel e fazer Redeploy.`
         }
       }
       return { error: error.message }
