@@ -1,5 +1,6 @@
 import 'server-only'
 import { createClient } from '@supabase/supabase-js'
+import { getSupabaseEnv } from '@/lib/supabase/env'
 
 /**
  * Cria um cliente Supabase com a service role key.
@@ -8,9 +9,10 @@ import { createClient } from '@supabase/supabase-js'
  * Este cliente ignora o RLS — a segurança é feita pela camada de autorização do Next.js.
  */
 export function createServiceClient() {
+  const { url, serviceKey } = getSupabaseEnv()
   return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    url,
+    serviceKey,
     {
       auth: {
         autoRefreshToken: false,

@@ -14,5 +14,5 @@ export async function POST(request: Request) {
 
   const url = new URL(request.url)
   url.pathname = '/login'
-  return NextResponse.redirect(url, { status: 301 })
+  return NextResponse.redirect(url, { status: 303 })
 }

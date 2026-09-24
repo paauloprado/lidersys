@@ -1,12 +1,21 @@
 import { createClient } from '@/lib/supabase/server'
+import { getCleanEnv } from '@/lib/supabase/env'
 import { redirect } from 'next/navigation'
 import Image from 'next/image'
 import { LoginForm } from '@/components/modules/auth/LoginForm'
 
 export const dynamic = 'force-dynamic'
 
-export default async function LoginPage() {
-  if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+export default async function LoginPage(props: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>
+}) {
+  const searchParams = props.searchParams ? await props.searchParams : undefined
+  const errorParam = typeof searchParams?.error === 'string' ? searchParams.error : undefined
+  const messageParam = typeof searchParams?.message === 'string' ? searchParams.message : undefined
+  const supabaseUrl = getCleanEnv('NEXT_PUBLIC_SUPABASE_URL')
+  const supabaseAnonKey = getCleanEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+
+  if (supabaseUrl && supabaseAnonKey) {
     try {
       const supabase = await createClient()
       const { data } = await supabase.auth.getUser()
@@ -71,7 +80,7 @@ export default async function LoginPage() {
             <p className="text-slate-500 font-medium">Insira suas credenciais para acessar o painel.</p>
           </div>
 
-          <LoginForm />
+          <LoginForm initialError={errorParam} initialMessage={messageParam} />
         </div>
       </div>
     </div>

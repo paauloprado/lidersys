@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getCleanEnv } from '@/lib/supabase/env'
 
 function parseCookies(header: string | null | undefined): { name: string; value: string }[] {
   if (!header) return []
@@ -19,8 +20,8 @@ function parseCookies(header: string | null | undefined): { name: string; value:
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next()
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  const supabaseUrl = getCleanEnv('NEXT_PUBLIC_SUPABASE_URL')
+  const supabaseAnonKey = getCleanEnv('NEXT_PUBLIC_SUPABASE_ANON_KEY')
 
   if (!supabaseUrl || !supabaseAnonKey) {
     return response
