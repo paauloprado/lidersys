@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { createUnidade, deleteUnidade, updateUnidade } from './actions'
+import { createUnidade, deleteUnidade, updateUnidade, createNeighborhood } from './actions'
 import { Plus, Trash2, Search, Pencil, MapPin, Building2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal'
@@ -19,23 +19,33 @@ export default function UnidadesClient({
 }) {
   const router = useRouter()
   const [unidades, setUnidades] = useState<VotingLocation[]>(initialUnidades)
+  const [bairrosList, setBairrosList] = useState<string[]>(bairros)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUnidade, setEditingUnidade] = useState<VotingLocation | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
 
-  // Estados controlados do formulário
+  // Estados controlados do formulário de unidade
   const [nameInput, setNameInput] = useState('')
   const [selectedNeighborhood, setSelectedNeighborhood] = useState('')
+
+  // Estado do modal de cadastro de novo bairro (somente administradores)
+  const [isBairroModalOpen, setIsBairroModalOpen] = useState(false)
+  const [newBairroName, setNewBairroName] = useState('')
+  const [isSubmittingBairro, setIsSubmittingBairro] = useState(false)
 
   // Confirmação de exclusão
   const [deletingUnidade, setDeletingUnidade] = useState<VotingLocation | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
 
-  // Sincroniza estado quando initialUnidades for atualizado pelo router.refresh()
+  // Sincroniza estado quando initialUnidades ou bairros forem atualizados pelo router.refresh()
   useEffect(() => {
     setUnidades(initialUnidades)
   }, [initialUnidades])
+
+  useEffect(() => {
+    setBairrosList(bairros)
+  }, [bairros])
 
   const filteredUnidades = unidades.filter(u => 
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -45,7 +55,7 @@ export default function UnidadesClient({
   function openCreateModal() {
     setEditingUnidade(null)
     setNameInput('')
-    setSelectedNeighborhood(bairros[0] || 'Centro')
+    setSelectedNeighborhood(bairrosList[0] || 'Centro')
     setIsModalOpen(true)
   }
 
@@ -54,6 +64,46 @@ export default function UnidadesClient({
     setNameInput(unidade.name)
     setSelectedNeighborhood(unidade.neighborhood)
     setIsModalOpen(true)
+  }
+
+  function openBairroModal() {
+    setNewBairroName('')
+    setIsBairroModalOpen(true)
+  }
+
+  async function handleCreateBairro(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const trimmed = newBairroName.trim()
+    if (!trimmed) {
+      toast.error('Informe o nome do bairro.')
+      return
+    }
+
+    setIsSubmittingBairro(true)
+    try {
+      const formData = new FormData()
+      formData.append('name', trimmed)
+      const res = await createNeighborhood(formData)
+      if (res?.error) {
+        toast.error(res.error)
+      } else {
+        toast.success(`Bairro "${trimmed}" cadastrado com sucesso!`)
+        // Atualiza a lista local de bairros em ordem alfabética
+        setBairrosList(prev => 
+          Array.from(new Set([...prev, trimmed])).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+        )
+        // Seleciona automaticamente o novo bairro no modal de unidade
+        setSelectedNeighborhood(trimmed)
+        setIsBairroModalOpen(false)
+        setNewBairroName('')
+        router.refresh()
+      }
+    } catch (err: unknown) {
+      console.error('Erro ao cadastrar bairro:', err)
+      toast.error('Erro de conexão ao cadastrar bairro.')
+    } finally {
+      setIsSubmittingBairro(false)
+    }
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -133,14 +183,25 @@ export default function UnidadesClient({
           <p className="text-slate-500 font-medium text-sm sm:text-base mt-1">Gerencie as escolas e locais de votação de Parnaíba.</p>
         </div>
         {isAdmin && (
-          <button 
-            type="button"
-            onClick={openCreateModal}
-            className="flex items-center gap-2 bg-brand-primary hover:bg-brand-primary/90 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-md shadow-brand-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <Plus className="w-4 h-4" />
-            Nova Unidade
-          </button>
+          <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap">
+            <button 
+              type="button"
+              onClick={openBairroModal}
+              className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2.5 rounded-xl font-bold text-sm transition-all hover:scale-[1.02] active:scale-[0.98]"
+              title="Cadastrar Novo Bairro"
+            >
+              <MapPin className="w-4 h-4 text-brand-primary shrink-0" />
+              Novo Bairro
+            </button>
+            <button 
+              type="button"
+              onClick={openCreateModal}
+              className="flex items-center gap-2 bg-brand-primary hover:bg-brand-primary/90 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-md shadow-brand-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Plus className="w-4 h-4" />
+              Nova Unidade
+            </button>
+          </div>
         )}
       </div>
 
@@ -213,7 +274,7 @@ export default function UnidadesClient({
         )}
       </div>
 
-      {/* Modal */}
+      {/* Modal de Unidade (Nova ou Editar) */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md max-h-[calc(100dvh-2rem)] overflow-y-auto animate-in zoom-in-95 duration-200">
@@ -240,7 +301,19 @@ export default function UnidadesClient({
               </div>
               
               <div>
-                <label className="block text-xs sm:text-sm font-bold text-brand-dark mb-1.5">Bairro</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs sm:text-sm font-bold text-brand-dark">Bairro</label>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={openBairroModal}
+                      className="text-xs font-bold text-brand-primary hover:text-brand-primary/80 transition-colors flex items-center gap-1 hover:underline"
+                    >
+                      <Plus className="w-3 h-3" />
+                      Novo bairro
+                    </button>
+                  )}
+                </div>
                 <select 
                   name="neighborhood" 
                   required 
@@ -248,7 +321,7 @@ export default function UnidadesClient({
                   onChange={(e) => setSelectedNeighborhood(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm"
                 >
-                  {bairros.map(b => (
+                  {bairrosList.map(b => (
                     <option key={b} value={b}>{b}</option>
                   ))}
                 </select>
@@ -268,6 +341,57 @@ export default function UnidadesClient({
                   className="flex-1 py-2.5 px-4 rounded-xl font-bold bg-brand-primary hover:bg-brand-primary/90 text-white shadow-md shadow-brand-primary/20 text-sm transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
                 >
                   {isSubmitting ? 'Salvando...' : 'Salvar'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Novo Bairro (Apenas Administradores) */}
+      {isBairroModalOpen && isAdmin && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm max-h-[calc(100dvh-2rem)] overflow-y-auto animate-in zoom-in-95 duration-200">
+            <div className="p-5 sm:p-6 border-b border-slate-100 flex items-center gap-3.5 bg-slate-50/50">
+              <div className="w-11 h-11 rounded-2xl bg-brand-primary/10 flex items-center justify-center text-brand-primary">
+                <MapPin className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg sm:text-xl font-black text-brand-dark tracking-tight">
+                  Novo Bairro
+                </h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">Disponível apenas para administradores</p>
+              </div>
+            </div>
+            
+            <form onSubmit={handleCreateBairro} className="p-5 sm:p-6 space-y-4">
+              <div>
+                <label className="block text-xs sm:text-sm font-bold text-brand-dark mb-1.5">Nome do Bairro</label>
+                <input 
+                  name="bairroName" 
+                  required 
+                  autoFocus
+                  value={newBairroName}
+                  onChange={(e) => setNewBairroName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm" 
+                  placeholder="Ex: Planalto Monteserra" 
+                />
+              </div>
+
+              <div className="flex gap-2.5 pt-3 border-t border-slate-100">
+                <button 
+                  type="button" 
+                  onClick={() => setIsBairroModalOpen(false)}
+                  className="flex-1 py-2.5 px-4 rounded-xl font-bold text-slate-500 hover:bg-slate-100 text-sm transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={isSubmittingBairro}
+                  className="flex-1 py-2.5 px-4 rounded-xl font-bold bg-brand-primary hover:bg-brand-primary/90 text-white shadow-md shadow-brand-primary/20 text-sm transition-all hover:scale-[1.01] active:scale-[0.99] disabled:opacity-50"
+                >
+                  {isSubmittingBairro ? 'Cadastrando...' : 'Cadastrar Bairro'}
                 </button>
               </div>
             </form>

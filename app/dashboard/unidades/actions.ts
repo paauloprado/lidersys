@@ -1,6 +1,6 @@
 'use server'
 
-import { authorizeModule } from '@/lib/supabase/authorization'
+import { authorizeAdmin, authorizeModule } from '@/lib/supabase/authorization'
 import { createServiceClient } from '@/lib/supabase/service'
 import { revalidatePath } from 'next/cache'
 
@@ -100,5 +100,38 @@ export async function deleteUnidade(id: string) {
   } catch (err: unknown) {
     console.error('Erro em deleteUnidade:', err)
     return { error: err instanceof Error ? err.message : 'Falha ao excluir unidade.' }
+  }
+}
+
+export async function createNeighborhood(formData: FormData) {
+  try {
+    await authorizeAdmin()
+    const supabase = createServiceClient()
+
+    const name = String(formData.get('name') || '').trim()
+
+    if (!name) {
+      return { error: 'O nome do bairro é obrigatório.' }
+    }
+
+    const { data, error } = await supabase
+      .from('neighborhoods')
+      .insert({ name })
+      .select()
+      .single()
+
+    if (error) {
+      if (error.code === '23505') {
+        return { error: 'Este bairro já está cadastrado.' }
+      }
+      console.error('Error creating neighborhood:', error)
+      return { error: error.message }
+    }
+
+    revalidatePath('/dashboard/unidades')
+    return { success: true, data }
+  } catch (err: unknown) {
+    console.error('Erro em createNeighborhood:', err)
+    return { error: err instanceof Error ? err.message : 'Falha ao cadastrar bairro.' }
   }
 }

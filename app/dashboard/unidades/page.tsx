@@ -25,18 +25,23 @@ async function UnidadesData() {
 
   const service = createServiceClient()
 
-  // 2. Executa busca do perfil e unidades em paralelo
-  const [profileRes, unidadesRes] = await Promise.all([
+  // 2. Executa busca do perfil, unidades e bairros em paralelo
+  const [profileRes, unidadesRes, bairrosRes] = await Promise.all([
     service.from('profiles').select('role').eq('id', user.id).single(),
     service.from('voting_locations').select('*').order('name', { ascending: true }),
+    service.from('neighborhoods').select('name').order('name', { ascending: true }),
   ])
 
   const isAdmin = profileRes.data?.role === 'admin'
+  const bairrosDb = (bairrosRes.data || []).map((b: { name: string }) => b.name)
+  const combinedBairros = Array.from(new Set([...BAIRROS_PARNAIBA, ...bairrosDb])).sort((a, b) =>
+    a.localeCompare(b, 'pt-BR')
+  )
 
   return (
     <UnidadesClient 
       initialUnidades={unidadesRes.data || []}
-      bairros={BAIRROS_PARNAIBA}
+      bairros={combinedBairros}
       isAdmin={isAdmin}
     />
   )

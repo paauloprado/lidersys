@@ -1,5 +1,11 @@
 export type VotingLocation = { id: string; name: string; neighborhood: string; address?: string | null }
 
+export type Neighborhood = {
+  id: string
+  name: string
+  created_at: string
+}
+
 export type CaboRecord = {
   id: string
   user_id: string
