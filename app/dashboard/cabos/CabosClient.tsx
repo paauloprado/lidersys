@@ -12,7 +12,8 @@ export default function CabosClient({
   initialCabos, 
   cabosProfiles = [],
   currentUserId,
-  votingLocations = []
+  votingLocations = [],
+  bairros = []
 }: { 
   initialCabos: CaboRecord[], 
   cabosProfiles?: Pick<UserProfile, 'id' | 'full_name' | 'role'>[],
@@ -21,7 +22,7 @@ export default function CabosClient({
   bairros?: string[]
 }) {
   const router = useRouter()
-  const BAIRROS = bairros || []
+  const BAIRROS = bairros
   
   const [cabos, setCabos] = useState(initialCabos)
   const [isModalOpen, setIsModalOpen] = useState(false)

@@ -10,14 +10,15 @@ import type { VoterRecord, VotingLocation } from '@/lib/types'
 
 export default function EleitoresClient({ 
   initialVoters, 
-  votingLocations = []
+  votingLocations = [],
+  bairros = []
 }: { 
   initialVoters: VoterRecord[], 
   votingLocations?: VotingLocation[],
   bairros?: string[]
 }) {
   const router = useRouter()
-  const BAIRROS = bairros || []
+  const BAIRROS = bairros
   const [selectedBairro, setSelectedBairro] = useState('')
   
   // Update selectedBairro when editing a voter
