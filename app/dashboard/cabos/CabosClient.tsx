@@ -22,7 +22,6 @@ export default function CabosClient({
 }) {
   const router = useRouter()
   const BAIRROS = bairros || []
-  const ESCOLAS_PARNAIBA = Array.from(new Set(votingLocations.map(v => v.name))).sort()
   
   const [cabos, setCabos] = useState(initialCabos)
   const [isModalOpen, setIsModalOpen] = useState(false)
