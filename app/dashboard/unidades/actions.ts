@@ -1,17 +1,16 @@
 'use server'
 
-import { authorizeAdmin } from '@/lib/supabase/authorization'
+import { authorizeModule } from '@/lib/supabase/authorization'
 import { createServiceClient } from '@/lib/supabase/service'
 import { revalidatePath } from 'next/cache'
 
 export async function createUnidade(formData: FormData) {
   try {
-    await authorizeAdmin()
+    await authorizeModule('unidades')
     const supabase = createServiceClient()
 
-    const name = formData.get('name') as string
-    const neighborhood = formData.get('neighborhood') as string
-    const address = (formData.get('address') as string) || null
+    const name = String(formData.get('name') || '').trim()
+    const neighborhood = String(formData.get('neighborhood') || '').trim()
 
     if (!name || !neighborhood) {
       return { error: 'Nome e Bairro são obrigatórios.' }
@@ -22,7 +21,6 @@ export async function createUnidade(formData: FormData) {
       .insert({
         name,
         neighborhood,
-        address,
       })
       .select()
       .single()
@@ -42,13 +40,12 @@ export async function createUnidade(formData: FormData) {
 
 export async function updateUnidade(formData: FormData) {
   try {
-    await authorizeAdmin()
+    await authorizeModule('unidades')
     const supabase = createServiceClient()
 
-    const id = formData.get('id') as string
-    const name = formData.get('name') as string
-    const neighborhood = formData.get('neighborhood') as string
-    const address = (formData.get('address') as string) || null
+    const id = String(formData.get('id') || '').trim()
+    const name = String(formData.get('name') || '').trim()
+    const neighborhood = String(formData.get('neighborhood') || '').trim()
 
     if (!id || !name || !neighborhood) {
       return { error: 'ID, Nome e Bairro são obrigatórios.' }
@@ -59,7 +56,6 @@ export async function updateUnidade(formData: FormData) {
       .update({
         name,
         neighborhood,
-        address,
       })
       .eq('id', id)
       .select()
@@ -81,7 +77,7 @@ export async function updateUnidade(formData: FormData) {
 export async function deleteUnidade(id: string) {
   try {
     if (!id) return { error: 'ID não fornecido.' }
-    await authorizeAdmin()
+    await authorizeModule('unidades')
     const supabase = createServiceClient()
 
     const { data, error } = await supabase

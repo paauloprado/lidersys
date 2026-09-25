@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createUnidade, deleteUnidade, updateUnidade } from './actions'
 import { Plus, Trash2, Search, Pencil, MapPin, Building2 } from 'lucide-react'
@@ -18,39 +18,74 @@ export default function UnidadesClient({
   isAdmin: boolean 
 }) {
   const router = useRouter()
-  const [unidades, setUnidades] = useState(initialUnidades)
+  const [unidades, setUnidades] = useState<VotingLocation[]>(initialUnidades)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingUnidade, setEditingUnidade] = useState<VotingLocation | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [searchTerm, setSearchTerm] = useState('')
 
+  // Estados controlados do formulário
+  const [nameInput, setNameInput] = useState('')
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState('')
+
   // Confirmação de exclusão
   const [deletingUnidade, setDeletingUnidade] = useState<VotingLocation | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
+
+  // Sincroniza estado quando initialUnidades for atualizado pelo router.refresh()
+  useEffect(() => {
+    setUnidades(initialUnidades)
+  }, [initialUnidades])
 
   const filteredUnidades = unidades.filter(u => 
     u.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     u.neighborhood.toLowerCase().includes(searchTerm.toLowerCase())
   )
 
+  function openCreateModal() {
+    setEditingUnidade(null)
+    setNameInput('')
+    setSelectedNeighborhood(bairros[0] || 'Centro')
+    setIsModalOpen(true)
+  }
+
+  function openEditModal(unidade: VotingLocation) {
+    setEditingUnidade(unidade)
+    setNameInput(unidade.name)
+    setSelectedNeighborhood(unidade.neighborhood)
+    setIsModalOpen(true)
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()
     setIsSubmitting(true)
     try {
-      const formData = new FormData(e.currentTarget)
+      const formData = new FormData()
+      formData.append('name', nameInput.trim())
+      formData.append('neighborhood', selectedNeighborhood.trim())
       
       let res;
       if (editingUnidade) {
-        formData.append('id', editingUnidade.id);
-        res = await updateUnidade(formData);
+        formData.append('id', editingUnidade.id)
+        res = await updateUnidade(formData)
       } else {
-        res = await createUnidade(formData);
+        res = await createUnidade(formData)
       }
       
       if (res?.error) {
         toast.error('Erro ao salvar unidade: ' + res.error)
-      } else {
+      } else if (res?.data) {
         toast.success(editingUnidade ? 'Unidade atualizada com sucesso!' : 'Unidade cadastrada com sucesso!')
+        const savedItem = res.data as VotingLocation
+        if (editingUnidade) {
+          setUnidades(prev => prev.map(u => u.id === savedItem.id ? savedItem : u))
+        } else {
+          setUnidades(prev => [savedItem, ...prev])
+        }
+        setIsModalOpen(false)
+        setEditingUnidade(null)
+        router.refresh()
+      } else {
         setIsModalOpen(false)
         setEditingUnidade(null)
         router.refresh()
@@ -100,7 +135,7 @@ export default function UnidadesClient({
         {isAdmin && (
           <button 
             type="button"
-            onClick={() => { setEditingUnidade(null); setIsModalOpen(true); }}
+            onClick={openCreateModal}
             className="flex items-center gap-2 bg-brand-primary hover:bg-brand-primary/90 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-md shadow-brand-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <Plus className="w-4 h-4" />
@@ -155,7 +190,7 @@ export default function UnidadesClient({
                     <>
                       <button 
                         type="button"
-                        onClick={() => { setEditingUnidade(u); setIsModalOpen(true); }}
+                        onClick={() => openEditModal(u)}
                         className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                         title="Editar Unidade"
                       >
@@ -197,7 +232,8 @@ export default function UnidadesClient({
                 <input 
                   name="name" 
                   required 
-                  defaultValue={editingUnidade?.name} 
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm" 
                   placeholder="Ex: ESCOLA MUNICIPAL..." 
                 />
@@ -208,7 +244,8 @@ export default function UnidadesClient({
                 <select 
                   name="neighborhood" 
                   required 
-                  defaultValue={editingUnidade?.neighborhood || bairros[0]} 
+                  value={selectedNeighborhood}
+                  onChange={(e) => setSelectedNeighborhood(e.target.value)}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm"
                 >
                   {bairros.map(b => (
