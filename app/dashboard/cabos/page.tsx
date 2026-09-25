@@ -34,7 +34,7 @@ async function CabosData() {
     cabosQuery.eq('user_id', user.id)
   }
 
-  const [cabosRes, profilesRes, locationsRes] = await Promise.all([
+  const [cabosRes, profilesRes, locationsRes, bairrosRes] = await Promise.all([
     cabosQuery,
     service
       .from('profiles')
@@ -45,11 +45,30 @@ async function CabosData() {
       .from('voting_locations')
       .select('*')
       .order('name', { ascending: true }),
+    service
+      .from('neighborhoods')
+      .select('name')
+      .order('name', { ascending: true }),
   ])
 
   if (cabosRes.error) {
     console.error('Erro ao buscar cabos_ledger:', cabosRes.error)
   }
+
+  const BAIRROS_PARNAIBA = [
+    'Alto Santa Maria', 'Area Rural de Parnaiba', 'Bebedouro', 'Boa Esperanca', 'Campos', 
+    'Cantagalo', 'Catanduvas', 'Ceara', 'Centro', 'Conselheiro Alberto Silva', 
+    'Dirceu Arcoverde', 'Floriopolis', 'Frei Higino', 'Igaracu', 'João XXIII', 
+    'Mendonca Clark', 'Nossa Senhora de Fatima', 'Nossa Senhora do Carmo', 'Nova Parnaíba', 
+    'Piauí', 'Pindorama', 'Planalto', 'Planalto de Monteserra The', 'Primavera', 
+    'Reis Veloso', 'Rodoviária', 'Sabiazal', 'Santa Isabel', 'Santa Luzia', 
+    'São Benedito', 'São Francisco da Guarita', 'Sao Jose', 'São Judas Tadeu', 
+    'Sao Pedro', 'Sao Vicente de Paula'
+  ]
+  const bairrosDb = (bairrosRes.data || []).map((b: { name: string }) => b.name)
+  const combinedBairros = Array.from(new Set([...BAIRROS_PARNAIBA, ...bairrosDb])).sort((a, b) =>
+    a.localeCompare(b, 'pt-BR')
+  )
 
   return (
     <CabosClient
@@ -57,6 +76,7 @@ async function CabosData() {
       cabosProfiles={profilesRes.data || []}
       votingLocations={locationsRes.data || []}
       currentUserId={user.id}
+      bairros={combinedBairros}
     />
   )
 }

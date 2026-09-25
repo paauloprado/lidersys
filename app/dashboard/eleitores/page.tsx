@@ -16,15 +16,32 @@ async function EleitoresData() {
   const service = createServiceClient()
 
   // 2. Executa queries em paralelo para carregamento instantâneo
-  const [votersRes, locationsRes] = await Promise.all([
+  const [votersRes, locationsRes, bairrosRes] = await Promise.all([
     service.from('voters_ledger').select('*').order('created_at', { ascending: false }),
     service.from('voting_locations').select('*').order('name', { ascending: true }),
+    service.from('neighborhoods').select('name').order('name', { ascending: true }),
   ])
+
+  const BAIRROS_PARNAIBA = [
+    'Alto Santa Maria', 'Area Rural de Parnaiba', 'Bebedouro', 'Boa Esperanca', 'Campos', 
+    'Cantagalo', 'Catanduvas', 'Ceara', 'Centro', 'Conselheiro Alberto Silva', 
+    'Dirceu Arcoverde', 'Floriopolis', 'Frei Higino', 'Igaracu', 'João XXIII', 
+    'Mendonca Clark', 'Nossa Senhora de Fatima', 'Nossa Senhora do Carmo', 'Nova Parnaíba', 
+    'Piauí', 'Pindorama', 'Planalto', 'Planalto de Monteserra The', 'Primavera', 
+    'Reis Veloso', 'Rodoviária', 'Sabiazal', 'Santa Isabel', 'Santa Luzia', 
+    'São Benedito', 'São Francisco da Guarita', 'Sao Jose', 'São Judas Tadeu', 
+    'Sao Pedro', 'Sao Vicente de Paula'
+  ]
+  const bairrosDb = (bairrosRes.data || []).map((b: { name: string }) => b.name)
+  const combinedBairros = Array.from(new Set([...BAIRROS_PARNAIBA, ...bairrosDb])).sort((a, b) =>
+    a.localeCompare(b, 'pt-BR')
+  )
 
   return (
     <EleitoresClient
       initialVoters={votersRes.data || []}
       votingLocations={locationsRes.data || []}
+      bairros={combinedBairros}
     />
   )
 }

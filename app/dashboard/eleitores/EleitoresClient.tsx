@@ -13,20 +13,28 @@ export default function EleitoresClient({
   votingLocations = []
 }: { 
   initialVoters: VoterRecord[], 
-  votingLocations?: VotingLocation[]
+  votingLocations?: VotingLocation[],
+  bairros?: string[]
 }) {
   const router = useRouter()
-  const BAIRROS_PARNAIBA = [
-    'Alto Santa Maria', 'Area Rural de Parnaiba', 'Bebedouro', 'Boa Esperanca', 'Campos', 
-    'Cantagalo', 'Catanduvas', 'Ceara', 'Centro', 'Conselheiro Alberto Silva', 
-    'Dirceu Arcoverde', 'Floriopolis', 'Frei Higino', 'Igaracu', 'João XXIII', 
-    'Mendonca Clark', 'Nossa Senhora de Fatima', 'Nossa Senhora do Carmo', 'Nova Parnaíba', 
-    'Piauí', 'Pindorama', 'Planalto', 'Planalto de Monteserra The', 'Primavera', 
-    'Reis Veloso', 'Rodoviária', 'Sabiazal', 'Santa Isabel', 'Santa Luzia', 
-    'São Benedito', 'São Francisco da Guarita', 'Sao Jose', 'São Judas Tadeu', 
-    'Sao Pedro', 'Sao Vicente de Paula'
-  ]
-  const ESCOLAS_PARNAIBA = Array.from(new Set(votingLocations.map(v => v.name))).sort()
+  const BAIRROS = bairros || []
+  const [selectedBairro, setSelectedBairro] = useState('')
+  
+  // Update selectedBairro when editing a voter
+  const handleEditVoter = (voter: VoterRecord) => {
+    setEditingVoter(voter)
+    setModalType(voter.type)
+    setSelectedBairro(voter.neighborhood || '')
+    setIsModalOpen(true)
+  }
+
+  // Calculate Escolas
+  const ESCOLAS_PARNAIBA = Array.from(new Set(
+    votingLocations
+      .filter(v => !selectedBairro || v.neighborhood === selectedBairro)
+      .map(v => v.name)
+  )).sort()
+
   const [voters, setVoters] = useState(initialVoters)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalType, setModalType] = useState<'lote' | 'individual'>('individual')
@@ -107,7 +115,7 @@ export default function EleitoresClient({
         <div className="flex w-full sm:w-auto items-center gap-2.5">
           <button 
             type="button"
-            onClick={() => { setEditingVoter(null); setModalType('lote'); setIsModalOpen(true); }}
+            onClick={() => { setEditingVoter(null); setModalType('lote'); setSelectedBairro(''); setIsModalOpen(true); }}
             className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-brand-dark px-4 py-2.5 rounded-xl font-bold text-sm transition-all"
           >
             <Users className="w-4 h-4" />
@@ -115,7 +123,7 @@ export default function EleitoresClient({
           </button>
           <button 
             type="button"
-            onClick={() => { setEditingVoter(null); setModalType('individual'); setIsModalOpen(true); }}
+            onClick={() => { setEditingVoter(null); setModalType('individual'); setSelectedBairro(''); setIsModalOpen(true); }}
             className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-brand-primary hover:bg-brand-primary/90 text-white px-4 py-2.5 rounded-xl font-bold text-sm shadow-md shadow-brand-primary/20 transition-all hover:scale-[1.02] active:scale-[0.98]"
           >
             <FileText className="w-4 h-4" />
@@ -198,7 +206,7 @@ export default function EleitoresClient({
                       <div className="flex items-center justify-end gap-1">
                         <button 
                           type="button"
-                          onClick={() => { setEditingVoter(v); setModalType(v.type); setIsModalOpen(true); }}
+                          onClick={() => handleEditVoter(v)}
                           className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                           title="Editar Registro"
                         >
@@ -245,9 +253,14 @@ export default function EleitoresClient({
                   </div>
                   <div>
                     <label className="block text-xs sm:text-sm font-bold text-brand-dark mb-1.5">Bairro / Região Predominante (Opcional)</label>
-                    <select name="neighborhood" defaultValue={editingVoter?.neighborhood || ''} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm">
+                    <select 
+                      name="neighborhood" 
+                      value={selectedBairro}
+                      onChange={(e) => setSelectedBairro(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm"
+                    >
                       <option value="">Selecione um bairro...</option>
-                      {BAIRROS_PARNAIBA.map(b => <option key={b} value={b}>{b}</option>)}
+                      {BAIRROS.map(b => <option key={b} value={b}>{b}</option>)}
                     </select>
                   </div>
                   <div>
@@ -271,9 +284,15 @@ export default function EleitoresClient({
                     </div>
                     <div>
                       <label className="block text-xs sm:text-sm font-bold text-brand-dark mb-1.5">Bairro</label>
-                      <select name="neighborhood" required defaultValue={editingVoter?.neighborhood || ''} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm">
+                      <select 
+                        name="neighborhood" 
+                        required 
+                        value={selectedBairro}
+                        onChange={(e) => setSelectedBairro(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm"
+                      >
                         <option value="">Selecione...</option>
-                        {BAIRROS_PARNAIBA.map(b => <option key={b} value={b}>{b}</option>)}
+                        {BAIRROS.map(b => <option key={b} value={b}>{b}</option>)}
                       </select>
                     </div>
                   </div>

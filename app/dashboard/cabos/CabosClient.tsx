@@ -6,10 +6,7 @@ import { createCabo, deleteCabo, updateCabo } from './actions'
 import { Plus, Trash2, Users, FileText, MapPin, Building2, Pencil, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDeleteModal } from '@/components/ui/ConfirmDeleteModal'
-import bairroEscolasMapRaw from '../../../bairro_escolas_map.json'
 import type { CaboRecord, VotingLocation, UserProfile } from '@/lib/types'
-
-const bairroEscolasMap: Record<string, string[]> = bairroEscolasMapRaw as Record<string, string[]>
 
 export default function CabosClient({ 
   initialCabos, 
@@ -20,10 +17,11 @@ export default function CabosClient({
   initialCabos: CaboRecord[], 
   cabosProfiles?: Pick<UserProfile, 'id' | 'full_name' | 'role'>[],
   currentUserId: string,
-  votingLocations?: VotingLocation[]
+  votingLocations?: VotingLocation[],
+  bairros?: string[]
 }) {
   const router = useRouter()
-  const BAIRROS_PARNAIBA = Object.keys(bairroEscolasMap).sort()
+  const BAIRROS = bairros || []
   const ESCOLAS_PARNAIBA = Array.from(new Set(votingLocations.map(v => v.name))).sort()
   
   const [cabos, setCabos] = useState(initialCabos)
@@ -347,7 +345,11 @@ export default function CabosClient({
                   {!editingCabo && <p className="text-xs sm:text-sm text-slate-500 font-medium">Você pode adicionar múltiplas linhas de lotes de uma vez só.</p>}
                   
                   {loteRows.map((row) => {
-                    const rowEscolas = row.neighborhood ? bairroEscolasMap[row.neighborhood] || ESCOLAS_PARNAIBA : ESCOLAS_PARNAIBA
+                    const rowEscolas = Array.from(new Set(
+                      votingLocations
+                        .filter(v => !row.neighborhood || v.neighborhood === row.neighborhood)
+                        .map(v => v.name)
+                    )).sort()
                     return (
                       <div key={row.id} className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3.5 relative group">
                         {loteRows.length > 1 && !editingCabo && (
@@ -366,7 +368,7 @@ export default function CabosClient({
                                 className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm"
                               >
                                 <option value="">Selecione...</option>
-                                {BAIRROS_PARNAIBA.map(b => <option key={b} value={b}>{b}</option>)}
+                                {BAIRROS.map(b => <option key={b} value={b}>{b}</option>)}
                               </select>
                             </div>
                             <div>
@@ -430,7 +432,7 @@ export default function CabosClient({
                         className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm"
                       >
                         <option value="">Selecione...</option>
-                        {BAIRROS_PARNAIBA.map(b => <option key={b} value={b}>{b}</option>)}
+                        {BAIRROS.map(b => <option key={b} value={b}>{b}</option>)}
                       </select>
                     </div>
                   </div>
@@ -438,7 +440,11 @@ export default function CabosClient({
                     <label className="block text-xs sm:text-sm font-bold text-brand-dark mb-1.5">Local de Votação (Escola/Unidade)</label>
                     <select name="voting_location" defaultValue={editingCabo?.voting_location || ''} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm">
                       <option value="">Selecione a escola...</option>
-                      {(selectedBairro ? (bairroEscolasMap[selectedBairro] || ESCOLAS_PARNAIBA) : ESCOLAS_PARNAIBA).map(e => <option key={e} value={e}>{e}</option>)}
+                      {Array.from(new Set(
+                        votingLocations
+                          .filter(v => !selectedBairro || v.neighborhood === selectedBairro)
+                          .map(v => v.name)
+                      )).sort().map(e => <option key={e} value={e}>{e}</option>)}
                     </select>
                   </div>
                 </>
