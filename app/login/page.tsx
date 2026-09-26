@@ -32,7 +32,15 @@ export default async function LoginPage(props: {
       ) {
         throw e
       }
-      console.error('Session check error in login page:', e)
+      const isExpectedAuthError =
+        e &&
+        typeof e === 'object' &&
+        (('code' in e && (e as { code?: string }).code === 'refresh_token_not_found') ||
+         ('message' in e && typeof (e as { message?: string }).message === 'string' && (e as { message: string }).message.includes('Refresh Token')))
+
+      if (!isExpectedAuthError) {
+        console.error('Session check error in login page:', e)
+      }
     }
   }
 

@@ -2,7 +2,7 @@
 
 import { authorizeModule } from '@/lib/supabase/authorization'
 import { createServiceClient } from '@/lib/supabase/service'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function createEleitor(formData: FormData) {
   try {
@@ -31,6 +31,8 @@ export async function createEleitor(formData: FormData) {
       return { error: error.message }
     }
 
+    revalidateTag('dashboard_metrics')
+    revalidateTag('eleitores')
     revalidatePath('/dashboard/eleitores')
     revalidatePath('/dashboard')
     return { success: true }
@@ -75,6 +77,8 @@ export async function deleteEleitor(id: string) {
       return { error: 'Registro não encontrado ou já excluído.' }
     }
 
+    revalidateTag('dashboard_metrics')
+    revalidateTag('eleitores')
     revalidatePath('/dashboard/eleitores')
     revalidatePath('/dashboard')
     return { success: true }
@@ -124,6 +128,8 @@ export async function updateEleitor(formData: FormData) {
       return { error: 'Registro não encontrado para atualização.' }
     }
 
+    revalidateTag('dashboard_metrics')
+    revalidateTag('eleitores')
     revalidatePath('/dashboard/eleitores')
     revalidatePath('/dashboard')
     return { success: true }

@@ -59,37 +59,114 @@ export async function middleware(request: NextRequest) {
       },
     )
 
-    const { data: { user } } = await supabase.auth.getUser()
+    const { data: { user }, error } = await supabase.auth.getUser()
 
-    if (!user) {
+    if (error || !user) {
+      if (error) {
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => {})
+      }
       const redirectUrl = new URL('/login', request.url)
       redirectUrl.searchParams.set('next', path)
-      return NextResponse.redirect(redirectUrl)
+      const redirectResponse = NextResponse.redirect(redirectUrl)
+
+      // Propagate any cookies set or cleared by Supabase to the redirect response
+      response.cookies.getAll().forEach(cookie => {
+        redirectResponse.cookies.set(cookie.name, cookie.value, cookie)
+      })
+
+      if (error) {
+        const reqCookies = request?.cookies && typeof request.cookies.getAll === 'function'
+          ? request.cookies.getAll()
+          : parseCookies(request?.headers?.get ? request.headers.get('cookie') : '')
+
+        reqCookies.forEach(cookie => {
+          if (cookie.name.includes('-auth-token')) {
+            redirectResponse.cookies.set(cookie.name, '', { maxAge: 0, path: '/' })
+          }
+        })
+        redirectResponse.cookies.set('lidersys_auth_meta', '', { maxAge: 0, path: '/' })
+      }
+
+      return redirectResponse
     }
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, access_modules')
-      .eq('id', user.id)
-      .maybeSingle()
+    let userRole = ''
+    let modules: string[] = []
 
-    const modules: string[] = profile?.role === 'admin'
-      ? ['dashboard', 'cabos', 'eleitores', 'candidatos', 'unidades', 'usuarios']
-      : profile?.access_modules ?? []
+    // 1. Tenta recuperar perfil do cookie rápido para evitar query ao banco no middleware
+    const authMetaCookie = request.cookies.get('lidersys_auth_meta')?.value
+    if (authMetaCookie) {
+      try {
+        const parsed = JSON.parse(Buffer.from(authMetaCookie, 'base64').toString('utf-8'))
+        if (parsed.id === user.id && parsed.exp > Date.now()) {
+          userRole = parsed.role
+          modules = parsed.modules || []
+        }
+      } catch {}
+    }
+
+    // 2. Se não estiver no cache, busca no banco de dados e salva no cookie por 5 minutos
+    if (!userRole) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('role, access_modules')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (!profile) {
+        const redirectUrl = new URL('/login', request.url)
+        return NextResponse.redirect(redirectUrl)
+      }
+
+      userRole = profile.role
+      modules = userRole === 'admin'
+        ? ['dashboard', 'cabos', 'eleitores', 'candidatos', 'unidades', 'relatorios', 'usuarios']
+        : profile.access_modules ?? []
+
+      const metaPayload = Buffer.from(
+        JSON.stringify({
+          id: user.id,
+          role: userRole,
+          modules,
+          exp: Date.now() + 5 * 60 * 1000,
+        })
+      ).toString('base64')
+
+      response.cookies.set('lidersys_auth_meta', metaPayload, {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 300,
+      })
+    }
 
     const requiredModule = path === '/dashboard' ? 'dashboard'
       : path.startsWith('/dashboard/cabos') ? 'cabos'
       : path.startsWith('/dashboard/eleitores') ? 'eleitores'
       : path.startsWith('/dashboard/candidatos') ? 'candidatos'
       : path.startsWith('/dashboard/unidades') ? 'unidades'
+      : path.startsWith('/dashboard/relatorios') ? 'relatorios'
       : path.startsWith('/dashboard/usuarios') ? 'usuarios'
       : null
 
-    if (!profile || !requiredModule || !modules.includes(requiredModule)) {
+    if (!requiredModule || !modules.includes(requiredModule)) {
       return new NextResponse('Acesso não autorizado', { status: 403 })
     }
   } catch (err) {
     console.error('Middleware execution error:', err)
+    const redirectUrl = new URL('/login', request.url)
+    redirectUrl.searchParams.set('next', path)
+    const redirectResponse = NextResponse.redirect(redirectUrl)
+    const reqCookies = request?.cookies && typeof request.cookies.getAll === 'function'
+      ? request.cookies.getAll()
+      : parseCookies(request?.headers?.get ? request.headers.get('cookie') : '')
+
+    reqCookies.forEach(cookie => {
+      if (cookie.name.includes('-auth-token')) {
+        redirectResponse.cookies.set(cookie.name, '', { maxAge: 0, path: '/' })
+      }
+    })
+    return redirectResponse
   }
 
   return response

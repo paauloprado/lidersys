@@ -1,8 +1,8 @@
 import { Sidebar } from '@/components/ui/Sidebar'
 import { Topbar } from '@/components/ui/Topbar'
 import { NavProvider } from '@/components/ui/NavContext'
-import { createClient } from '@/lib/supabase/server'
-import { createServiceClient } from '@/lib/supabase/service'
+import { NavigationProgress } from '@/components/ui/NavigationProgress'
+import { getSessionUser, getSessionProfile } from '@/lib/supabase/authCache'
 import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
@@ -12,33 +12,24 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode
 }) {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
+  const user = await getSessionUser()
   if (!user) {
     redirect('/login')
   }
 
-  // Busca dados de perfil usando serviceClient para maior velocidade e sem bloqueio RLS
-  const service = createServiceClient()
-  const { data: profile } = await service
-    .from('profiles')
-    .select('id, full_name, role, access_modules')
-    .eq('id', user.id)
-    .maybeSingle()
+  const profile = await getSessionProfile(user.id)
 
   const role = profile?.role || 'lideranca'
   let accessModules = profile?.access_modules || []
   if (role === 'admin') {
-    accessModules = ['dashboard', 'cabos', 'eleitores', 'candidatos', 'unidades', 'usuarios']
+    accessModules = ['dashboard', 'cabos', 'eleitores', 'candidatos', 'unidades', 'relatorios', 'usuarios']
   }
 
   const userName = profile?.full_name || user.email || 'Usuário'
 
   return (
     <NavProvider>
+      <NavigationProgress />
       <div className="flex min-h-dvh w-full flex-col overflow-hidden bg-slate-50 md:h-dvh md:flex-row">
         <Sidebar accessModules={accessModules} userName={userName} userRole={role} />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

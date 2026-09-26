@@ -266,7 +266,15 @@ export default function EleitoresClient({
                   </div>
                   <div>
                     <label className="block text-xs sm:text-sm font-bold text-brand-dark mb-1.5">Local de Votação Predominante (Escola)</label>
-                    <select name="voting_location" defaultValue={editingVoter?.voting_location || ''} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm">
+                    <select 
+                      name="voting_location" 
+                      defaultValue={editingVoter?.voting_location || ''}
+                      onChange={(e) => {
+                        const loc = votingLocations.find(v => v.name === e.target.value)
+                        if (loc?.neighborhood) setSelectedBairro(loc.neighborhood)
+                      }}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm"
+                    >
                       <option value="">Selecione a escola...</option>
                       {ESCOLAS_PARNAIBA.map(e => <option key={e} value={e}>{e}</option>)}
                     </select>
@@ -299,7 +307,15 @@ export default function EleitoresClient({
                   </div>
                   <div>
                     <label className="block text-xs sm:text-sm font-bold text-brand-dark mb-1.5">Local de Votação (Escola/Unidade)</label>
-                    <select name="voting_location" defaultValue={editingVoter?.voting_location || ''} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm">
+                    <select 
+                      name="voting_location" 
+                      defaultValue={editingVoter?.voting_location || ''}
+                      onChange={(e) => {
+                        const loc = votingLocations.find(v => v.name === e.target.value)
+                        if (loc?.neighborhood) setSelectedBairro(loc.neighborhood)
+                      }}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm"
+                    >
                       <option value="">Selecione a escola...</option>
                       {ESCOLAS_PARNAIBA.map(e => <option key={e} value={e}>{e}</option>)}
                     </select>

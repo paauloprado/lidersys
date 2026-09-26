@@ -1,30 +1,31 @@
-import { Suspense } from 'react'
 import { createServiceClient } from '@/lib/supabase/service'
-import { createClient } from '@/lib/supabase/server'
+import { getSessionUser, getSessionProfile } from '@/lib/supabase/authCache'
+import { getCachedVotingLocations, getCachedNeighborhoods } from '@/lib/supabase/cachedQueries'
 import { redirect } from 'next/navigation'
 import CabosClient from './CabosClient'
 
-async function CabosData() {
-  const supabase = await createClient()
+const BAIRROS_PARNAIBA = [
+  'Alto Santa Maria', 'Area Rural de Parnaiba', 'Bebedouro', 'Boa Esperanca', 'Campos', 
+  'Cantagalo', 'Catanduvas', 'Ceara', 'Centro', 'Conselheiro Alberto Silva', 
+  'Dirceu Arcoverde', 'Floriopolis', 'Frei Higino', 'Igaracu', 'João XXIII', 
+  'Mendonca Clark', 'Nossa Senhora de Fatima', 'Nossa Senhora do Carmo', 'Nova Parnaíba', 
+  'Piauí', 'Pindorama', 'Planalto', 'Planalto de Monteserra The', 'Primavera', 
+  'Reis Veloso', 'Rodoviária', 'Sabiazal', 'Santa Isabel', 'Santa Luzia', 
+  'São Benedito', 'São Francisco da Guarita', 'Sao Jose', 'São Judas Tadeu', 
+  'Sao Pedro', 'Sao Vicente de Paula'
+]
 
-  // 1. Verifica sessão
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+export default async function CabosPage() {
+  // 1. Obtém sessão e perfil (deduplicados em memória via React.cache())
+  const user = await getSessionUser()
   if (!user) redirect('/login')
+
+  const profile = await getSessionProfile(user.id)
+  const isAdmin = profile?.role === 'admin'
 
   const service = createServiceClient()
 
-  // 2. Busca perfil primeiro para saber se é admin
-  const { data: profile } = await service
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .maybeSingle()
-
-  const isAdmin = profile?.role === 'admin'
-
-  // 3. Executa queries de dados em paralelo para carregamento ultra-rápido
+  // 2. Query de cabos filtrada por admin ou dono
   const cabosQuery = service
     .from('cabos_ledger')
     .select('*, candidates(name)')
@@ -34,80 +35,35 @@ async function CabosData() {
     cabosQuery.eq('user_id', user.id)
   }
 
-  const [cabosRes, profilesRes, locationsRes, bairrosRes] = await Promise.all([
+  // 3. Executa queries dinâmicas e consome caches estáticos em paralelo
+  const [cabosRes, profilesRes, locations, bairrosDb] = await Promise.all([
     cabosQuery,
     service
       .from('profiles')
       .select('id, full_name, role')
       .eq('role', 'lideranca')
       .order('full_name', { ascending: true }),
-    service
-      .from('voting_locations')
-      .select('*')
-      .order('name', { ascending: true }),
-    service
-      .from('neighborhoods')
-      .select('name')
-      .order('name', { ascending: true }),
+    getCachedVotingLocations(),
+    getCachedNeighborhoods(),
   ])
 
   if (cabosRes.error) {
     console.error('Erro ao buscar cabos_ledger:', cabosRes.error)
   }
 
-  const BAIRROS_PARNAIBA = [
-    'Alto Santa Maria', 'Area Rural de Parnaiba', 'Bebedouro', 'Boa Esperanca', 'Campos', 
-    'Cantagalo', 'Catanduvas', 'Ceara', 'Centro', 'Conselheiro Alberto Silva', 
-    'Dirceu Arcoverde', 'Floriopolis', 'Frei Higino', 'Igaracu', 'João XXIII', 
-    'Mendonca Clark', 'Nossa Senhora de Fatima', 'Nossa Senhora do Carmo', 'Nova Parnaíba', 
-    'Piauí', 'Pindorama', 'Planalto', 'Planalto de Monteserra The', 'Primavera', 
-    'Reis Veloso', 'Rodoviária', 'Sabiazal', 'Santa Isabel', 'Santa Luzia', 
-    'São Benedito', 'São Francisco da Guarita', 'Sao Jose', 'São Judas Tadeu', 
-    'Sao Pedro', 'Sao Vicente de Paula'
-  ]
-  const bairrosDb = (bairrosRes.data || []).map((b: { name: string }) => b.name)
   const combinedBairros = Array.from(new Set([...BAIRROS_PARNAIBA, ...bairrosDb])).sort((a, b) =>
     a.localeCompare(b, 'pt-BR')
   )
 
   return (
-    <CabosClient
-      initialCabos={cabosRes.data || []}
-      cabosProfiles={profilesRes.data || []}
-      votingLocations={locationsRes.data || []}
-      currentUserId={user.id}
-      bairros={combinedBairros}
-    />
-  )
-}
-
-function CabosSkeleton() {
-  return (
-    <div className="space-y-6 sm:space-y-8 animate-pulse">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 sm:p-7 rounded-3xl border border-slate-200">
-        <div>
-          <div className="h-8 w-64 bg-slate-200 rounded-lg mb-2"></div>
-          <div className="h-4 w-48 bg-slate-100 rounded-lg"></div>
-        </div>
-        <div className="flex gap-2.5 w-full sm:w-auto">
-          <div className="h-10 w-32 bg-slate-200 rounded-xl"></div>
-          <div className="h-10 w-36 bg-brand-primary/20 rounded-xl"></div>
-        </div>
-      </div>
-      <div className="space-y-4">
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 h-28"></div>
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 h-28"></div>
-      </div>
-    </div>
-  )
-}
-
-export default function CabosPage() {
-  return (
     <div className="w-full max-w-7xl mx-auto">
-      <Suspense fallback={<CabosSkeleton />}>
-        <CabosData />
-      </Suspense>
+      <CabosClient
+        initialCabos={cabosRes.data || []}
+        cabosProfiles={profilesRes.data || []}
+        votingLocations={locations}
+        currentUserId={user.id}
+        bairros={combinedBairros}
+      />
     </div>
   )
 }

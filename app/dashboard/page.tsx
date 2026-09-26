@@ -1,17 +1,17 @@
 import { Users, Target, TrendingUp, Calendar, UserCheck } from 'lucide-react'
-import { createServiceClient } from '@/lib/supabase/service'
+import { getCachedDashboardMetrics, getCachedMetaEleitores } from '@/lib/supabase/cachedQueries'
+import { getSessionProfile, getSessionUser } from '@/lib/supabase/authCache'
+import MetaCard from './MetaCard'
 
 export default async function DashboardPage() {
-  const supabase = createServiceClient()
-
-  // Buscar totais de Cabos e Eleitores simultaneamente
-  const [cabosRes, eleitoresRes] = await Promise.all([
-    supabase.from('cabos_ledger').select('quantity'),
-    supabase.from('voters_ledger').select('quantity'),
+  const [{ totalCabos, totalEleitores }, meta, user] = await Promise.all([
+    getCachedDashboardMetrics(),
+    getCachedMetaEleitores(),
+    getSessionUser(),
   ])
 
-  const totalCabos = cabosRes.data?.reduce((acc, curr) => acc + (curr.quantity || 1), 0) || 0
-  const totalEleitores = eleitoresRes.data?.reduce((acc, curr) => acc + (curr.quantity || 1), 0) || 0
+  const profile = user ? await getSessionProfile(user.id) : null
+  const isAdmin = profile?.role === 'admin'
 
   const currentDate = new Intl.DateTimeFormat('pt-BR', { dateStyle: 'full' }).format(new Date())
 
@@ -37,7 +37,7 @@ export default async function DashboardPage() {
       {/* Grid de Métricas Principais */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-5 sm:gap-6">
         
-        {/* Card: Cabos Eleitorais */}
+        {/* Card: Cabos Eleitorais — agora conta usuários com role='lideranca' */}
         <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-sm transition-shadow group relative overflow-hidden">
           <div className="flex items-start justify-between mb-5 sm:mb-6 relative z-10">
             <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-brand-primary/10 text-brand-primary flex items-center justify-center group-hover:scale-105 group-hover:bg-brand-primary/15 transition-all">
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
           </div>
           <div className="relative z-10">
             <h3 className="text-4xl sm:text-5xl font-black text-brand-dark tracking-tight">{totalCabos}</h3>
-            <p className="text-slate-500 font-bold mt-1 text-sm sm:text-base">Cabos Eleitorais Ativos</p>
+            <p className="text-slate-500 font-bold mt-1 text-sm sm:text-base">Cabos Eleitorais Ativos no Sistema</p>
           </div>
         </div>
 
@@ -67,36 +67,16 @@ export default async function DashboardPage() {
           </div>
           <div className="relative z-10">
             <h3 className="text-4xl sm:text-5xl font-black text-brand-dark tracking-tight">{totalEleitores}</h3>
-            <p className="text-slate-500 font-bold mt-1 text-sm sm:text-base">Eleitores na Base</p>
+            <p className="text-slate-500 font-bold mt-1 text-sm sm:text-base">Eleitores Ativos</p>
           </div>
         </div>
 
-        {/* Card: Meta */}
-        <div className="bg-gradient-to-br from-brand-primary to-brand-dark p-6 sm:p-8 rounded-3xl shadow-md text-white relative overflow-hidden group sm:col-span-2 md:col-span-1">
-          <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none transition-transform group-hover:scale-110"></div>
-          
-          <div className="flex items-start justify-between mb-5 sm:mb-6 relative z-10">
-            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/10 backdrop-blur-md text-white flex items-center justify-center border border-white/10">
-              <Target className="w-6 h-6 sm:w-7 sm:h-7" />
-            </div>
-          </div>
-          <div className="relative z-10">
-            <div className="flex items-end gap-2 mb-3 sm:mb-4">
-              <h3 className="text-4xl sm:text-5xl font-black tracking-tight">{Math.min(100, Math.round((totalEleitores / 5000) * 100))}%</h3>
-              <p className="text-blue-100 font-bold pb-1 text-sm sm:text-base">da meta</p>
-            </div>
-            
-            <div className="w-full bg-black/30 rounded-full h-3 backdrop-blur-sm overflow-hidden border border-white/10">
-              <div className="bg-gradient-to-r from-blue-300 to-white h-full rounded-full relative" style={{ width: `${Math.min(100, Math.round((totalEleitores / 5000) * 100))}%` }}>
-                <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
-              </div>
-            </div>
-            <div className="flex justify-between items-center mt-3 text-xs sm:text-sm text-blue-100 font-medium">
-              <span>Atual: {totalEleitores}</span>
-              <span>Alvo: 5.000</span>
-            </div>
-          </div>
-        </div>
+        {/* Card: Meta — editável pelo admin */}
+        <MetaCard
+          totalEleitores={totalEleitores}
+          meta={meta}
+          isAdmin={isAdmin}
+        />
       </div>
     </div>
   )

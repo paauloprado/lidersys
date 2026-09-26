@@ -388,7 +388,12 @@ export default function CabosClient({
                             <label className="block text-xs font-bold text-brand-dark mb-1">Local de Votação (Unidade Escolar)</label>
                             <select 
                               value={row.voting_location} 
-                              onChange={(e) => updateLoteRow(row.id, 'voting_location', e.target.value)}
+                              onChange={(e) => {
+                                const loc = votingLocations.find(v => v.name === e.target.value)
+                                const newNeighborhood = loc?.neighborhood || row.neighborhood
+                                updateLoteRow(row.id, 'voting_location', e.target.value)
+                                if (loc?.neighborhood) updateLoteRow(row.id, 'neighborhood', newNeighborhood)
+                              }}
                               name={editingCabo ? "voting_location" : undefined}
                               className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm"
                             >
@@ -438,7 +443,15 @@ export default function CabosClient({
                   </div>
                   <div>
                     <label className="block text-xs sm:text-sm font-bold text-brand-dark mb-1.5">Local de Votação (Escola/Unidade)</label>
-                    <select name="voting_location" defaultValue={editingCabo?.voting_location || ''} className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm">
+                    <select 
+                      name="voting_location" 
+                      defaultValue={editingCabo?.voting_location || ''}
+                      onChange={(e) => {
+                        const loc = votingLocations.find(v => v.name === e.target.value)
+                        if (loc?.neighborhood) setSelectedBairro(loc.neighborhood)
+                      }}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 outline-none bg-white text-brand-dark text-sm"
+                    >
                       <option value="">Selecione a escola...</option>
                       {Array.from(new Set(
                         votingLocations

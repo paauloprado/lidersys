@@ -3,6 +3,7 @@
 import { createClient as createServerClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { revalidatePath } from 'next/cache'
+import { cookies } from 'next/headers'
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : 'Erro inesperado'
@@ -97,6 +98,11 @@ export async function updateUser(formData: FormData) {
       .eq('id', id)
 
     if (error) throw error
+
+    // Invalida o cookie de cache do middleware para que as novas permissões
+    // sejam carregadas imediatamente na próxima navegação (sem precisar de logout)
+    const cookieStore = await cookies()
+    cookieStore.delete('lidersys_auth_meta')
 
     revalidatePath('/dashboard/usuarios')
     return { success: true }

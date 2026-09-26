@@ -10,6 +10,7 @@ import {
   Shield,
   Award,
   MapPin,
+  BarChart3,
   X,
   LogOut,
   ChevronRight,
@@ -28,6 +29,7 @@ const allLinks = [
   { id: 'eleitores', name: 'Eleitores', href: '/dashboard/eleitores', icon: Users },
   { id: 'candidatos', name: 'Candidatos', href: '/dashboard/candidatos', icon: Award },
   { id: 'unidades', name: 'Unidades', href: '/dashboard/unidades', icon: MapPin },
+  { id: 'relatorios', name: 'Relatórios', href: '/dashboard/relatorios', icon: BarChart3 },
   { id: 'usuarios', name: 'Usuários', href: '/dashboard/usuarios', icon: Shield },
 ]
 
@@ -83,6 +85,7 @@ export function Sidebar({
               <Link
                 key={id}
                 href={href}
+                prefetch={true}
                 className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-sm font-bold transition-all ${
                   isActive
                     ? 'bg-brand-primary text-white shadow-md shadow-brand-primary/20'
@@ -178,6 +181,7 @@ export function Sidebar({
               <Link
                 key={id}
                 href={href}
+                prefetch={true}
                 onClick={closeMobile}
                 className={`flex items-center justify-between rounded-xl px-4 py-3 text-sm font-bold transition-all ${
                   isActive

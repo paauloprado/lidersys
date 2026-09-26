@@ -298,6 +298,7 @@ export default function UserManagementClient({
                     { id: 'eleitores', label: 'Eleitores' },
                     { id: 'candidatos', label: 'Candidatos' },
                     { id: 'unidades', label: 'Unidades' },
+                    { id: 'relatorios', label: 'Relatórios de Votos' },
                     { id: 'usuarios', label: 'Usuários' }
                   ].map(mod => (
                     <label key={mod.id} className="flex items-center gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">

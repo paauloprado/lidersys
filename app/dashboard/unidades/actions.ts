@@ -2,7 +2,7 @@
 
 import { authorizeAdmin, authorizeModule } from '@/lib/supabase/authorization'
 import { createServiceClient } from '@/lib/supabase/service'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function createUnidade(formData: FormData) {
   try {
@@ -30,6 +30,7 @@ export async function createUnidade(formData: FormData) {
       return { error: error.message }
     }
 
+    revalidateTag('voting_locations')
     revalidatePath('/dashboard/unidades')
     return { success: true, data }
   } catch (err: unknown) {
@@ -66,6 +67,7 @@ export async function updateUnidade(formData: FormData) {
       return { error: error.message }
     }
 
+    revalidateTag('voting_locations')
     revalidatePath('/dashboard/unidades')
     return { success: true, data }
   } catch (err: unknown) {
@@ -95,6 +97,7 @@ export async function deleteUnidade(id: string) {
       return { error: 'Unidade não encontrada ou já excluída.' }
     }
 
+    revalidateTag('voting_locations')
     revalidatePath('/dashboard/unidades')
     return { success: true }
   } catch (err: unknown) {
@@ -128,6 +131,7 @@ export async function createNeighborhood(formData: FormData) {
       return { error: error.message }
     }
 
+    revalidateTag('neighborhoods')
     revalidatePath('/dashboard/unidades')
     return { success: true, data }
   } catch (err: unknown) {

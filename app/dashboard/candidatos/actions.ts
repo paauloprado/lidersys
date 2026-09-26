@@ -2,7 +2,7 @@
 
 import { authorizeAdmin } from '@/lib/supabase/authorization'
 import { createServiceClient } from '@/lib/supabase/service'
-import { revalidatePath } from 'next/cache'
+import { revalidatePath, revalidateTag } from 'next/cache'
 
 export async function createCandidate(formData: FormData) {
   try {
@@ -30,6 +30,7 @@ export async function createCandidate(formData: FormData) {
       return { error: error.message }
     }
 
+    revalidateTag('candidates')
     revalidatePath('/dashboard/candidatos')
     return { success: true }
   } catch (err: unknown) {
@@ -59,6 +60,7 @@ export async function deleteCandidate(id: string) {
       return { error: 'Candidato não encontrado ou já excluído.' }
     }
 
+    revalidateTag('candidates')
     revalidatePath('/dashboard/candidatos')
     return { success: true }
   } catch (err: unknown) {
@@ -102,6 +104,7 @@ export async function updateCandidate(formData: FormData) {
       return { error: 'Candidato não encontrado para atualização.' }
     }
 
+    revalidateTag('candidates')
     revalidatePath('/dashboard/candidatos')
     return { success: true }
   } catch (err: unknown) {
