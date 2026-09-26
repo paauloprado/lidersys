@@ -244,6 +244,9 @@ function CaboRow({
   const pctGrand = ((total / grandTotal) * 100).toFixed(1)
   return (
     <div className="group flex items-center gap-3 sm:gap-4 p-3 rounded-2xl hover:bg-slate-50 transition-colors">
+      <div className="w-7 h-7 rounded-xl bg-brand-primary/10 text-brand-primary font-black text-xs flex items-center justify-center shrink-0">
+        {rank}
+      </div>
       <div className="w-10 h-10 rounded-2xl bg-brand-primary/10 text-brand-primary font-black text-base flex items-center justify-center shrink-0">
         {nome.charAt(0).toUpperCase()}
       </div>

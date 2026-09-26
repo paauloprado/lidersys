@@ -1,4 +1,4 @@
-import { Users, Target, TrendingUp, Calendar, UserCheck } from 'lucide-react'
+import { Users, TrendingUp, Calendar, UserCheck } from 'lucide-react'
 import { getCachedDashboardMetrics, getCachedMetaEleitores } from '@/lib/supabase/cachedQueries'
 import { getSessionProfile, getSessionUser } from '@/lib/supabase/authCache'
 import MetaCard from './MetaCard'
